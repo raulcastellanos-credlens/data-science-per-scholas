@@ -49,5 +49,3 @@
 10. **Final Steps**
     - Renamed columns per golden record standard
     - Exported with '|' delimiter
-
-Would you like me to explain or expand on any of these transformations?
