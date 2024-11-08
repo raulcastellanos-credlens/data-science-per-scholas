@@ -1,4 +1,9 @@
 
+###############
+# Installing packages 
+################
+
+
 packages_list <- c("tidyverse", 
                    "lubridate", 
                    "janitor",
@@ -23,17 +28,28 @@ options(scipen=999) # prevent scientific notation
 #remove all of the previous work in my environment
 rm(list = ls())
 
+###############
+# Setting working directory 
+################
+
 setwd("/Users/raul.castellanos/Documents/data/per_scholas/")
+
+###############
+# Reading data 
+################
 
 per_scholas <- Per_Scholas_Graduate_Data_Since_2012 <- read_excel("../data/Per Scholas Graduate Data Since 2012.xlsx")
 per_scholas = per_scholas %>% clean_names()
 
 
-## Clean data set 
+###############
+# Cleaning dataset 
+################
 
-```{r}
+###############
+# City 
+################
 
-#City 
 per_scholas <- per_scholas %>%
   mutate(contact_full_name_mailing_city = str_to_upper(contact_full_name_mailing_city)) %>% 
   mutate(
@@ -57,7 +73,9 @@ per_scholas <- per_scholas %>%
     )
   )
 
-#SSN 
+###############
+# SSN
+################
 
 invalid_ssn_values <- c("9334", "*****1666", "***-**-****", "***-**-4874", "7", 
                         "000-00-0000", "000-00-1418", "000-00-7147", "0", 
@@ -90,7 +108,9 @@ per_scholas <- per_scholas %>%
                           NA_character_)
   )
 
+###############
 # Ages 
+################
 
 per_scholas <- per_scholas %>%
   mutate(
@@ -100,6 +120,28 @@ per_scholas <- per_scholas %>%
       NA_Date_, 
       contact_full_name_birthdate
     )
+  )
+
+# Define the age bucket function
+age_bucket <- function(age) {
+  case_when(
+    age < 18                    ~ "Under 18",
+    age >= 18 & age <= 24       ~ "18-24",
+    age >= 25 & age <= 34       ~ "25-34",
+    age >= 35 & age <= 44       ~ "35-44",
+    age >= 45 & age <= 54       ~ "45-54",
+    age >= 55 & age <= 64       ~ "55-64",
+    age >= 65                   ~ "65 and over"
+  )
+}
+
+# Apply the function to create age_bucket_at_cred_award column based on end_date
+per_scholas <- per_scholas %>%
+  mutate(
+    # Calculate age based on end_date (award date)
+    age_at_cred_award = as.integer(interval(contact_full_name_birthdate, end_date) / years(1)),
+    # Assign age bucket based on calculated age
+    age_bucket_at_cred_award = age_bucket(age_at_cred_award)
   )
 
 ###############
@@ -151,14 +193,18 @@ per_scholas <- per_scholas %>%
   ))
 
 
-#National column 
+###############
+# National column
+################
 per_scholas <- per_scholas %>%
   mutate(national_flag = ifelse(
       program_campus == 'National', 1, 0
     )
   )
 
-
+###############
+# Stackedd credential 
+################
 
 # Credential names with their display strings
 credential_names <- list(
@@ -190,19 +236,7 @@ per_scholas <- per_scholas %>%
   ) %>%
   ungroup()
 
-
-#### Ethnicity 
-
-per_scholas <- per_scholas %>%
-  mutate(
-    contact_full_name_race_ethnicity = if_else(
-      str_detect(contact_full_name_race_ethnicity, ";"), 
-      "Two or more Race/Ethnicity categories", 
-      contact_full_name_race_ethnicity
-    )
-  )
-
-#STACKED TABLE 
+#STACKED TABLE REVISION TABLE
 
 # first version 
 
@@ -223,29 +257,26 @@ total_credential_count <- stacked_credential_table %>%
   summarize(total_count = sum(count)) %>%  # Sum the count column
   pull(total_count)
 
-# Define the age bucket function
-age_bucket <- function(age) {
-  case_when(
-    age < 18                    ~ "Under 18",
-    age >= 18 & age <= 24       ~ "18-24",
-    age >= 25 & age <= 34       ~ "25-34",
-    age >= 35 & age <= 44       ~ "35-44",
-    age >= 45 & age <= 54       ~ "45-54",
-    age >= 55 & age <= 64       ~ "55-64",
-    age >= 65                   ~ "65 and over"
-  )
-}
 
-# Apply the function to create age_bucket_at_cred_award column based on end_date
+###############
+# Ethnicity
+################
+
 per_scholas <- per_scholas %>%
   mutate(
-    # Calculate age based on end_date (award date)
-    age_at_cred_award = as.integer(interval(contact_full_name_birthdate, end_date) / years(1)),
-    # Assign age bucket based on calculated age
-    age_bucket_at_cred_award = age_bucket(age_at_cred_award)
+    contact_full_name_race_ethnicity = if_else(
+      str_detect(contact_full_name_race_ethnicity, ";"), 
+      "Two or more Race/Ethnicity categories", 
+      contact_full_name_race_ethnicity
+    )
   )
 
-# exam columns 
+
+
+
+###############
+# Exam columns 
+################
 
 per_scholas <- per_scholas %>%
   mutate(
@@ -268,6 +299,10 @@ per_scholas$organization_name = 'Per Scholas'
 # Add the year of the start date 
 per_scholas <- per_scholas %>%
   mutate(start_date_year = year(as.Date(start_date)))
+
+###############
+# Standarize to meet Gold Standard 
+################
 
 
 #Clean columns to put them in order and name after the golden record 
@@ -327,13 +362,11 @@ per_scholas_final <- per_scholas %>%
          organization_name) %>% 
     mutate(across(where(is.character), ~ if_else(is.na(.), "", .)))
 
-```
+###############
+# Export
+################
 
-
-# Exporting in Equifax format (golden record)
-
-```{r}
 write.csv(stacked_credential_table, "stacked_credential_table.csv")
 write.table(per_scholas_final, "PerScholas_20241111.csv", 
             row.names = FALSE, sep = "|", quote = TRUE)
-```
+
